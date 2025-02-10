@@ -1,95 +1,76 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_NAME (64)
+#define MAX_NAME 64
 
 struct _item;
 typedef struct _item* ItemP;
-
 typedef struct _item {
     char name[MAX_NAME];
     int quantity;
     ItemP next;
 } Item;
 
-// Funkcija za usporedbu naziva opreme
-int compareNames(const char *name1, const char *name2) {
-    return strcmp(name1, name2);
+void insert_sorted(ItemP head, char* name);
+void print_list(ItemP head);
+void free_list(ItemP head);
+
+int main() {
+    FILE* file = fopen("inventura.txt", "r");
+    if (!file) {
+        printf("Neuspjelo otvaranje datoteke.\n");
+        return -1;
+    }
+
+    Item head = { "", 0, NULL };
+    char name[MAX_NAME];
+    double price;
+
+    while (fscanf(file, "%s %lf", name, &price) == 2) {
+        insert_sorted(&head, name);
+    }
+
+    fclose(file);
+    print_list(head.next);
+    free_list(head.next);
+
+    return 0;
 }
 
-// Funkcija za umetanje u vezanu listu prema nazivu opreme
-ItemP insertSorted(ItemP head, Item* newItem) {
-    ItemP current = head, prev = NULL;
+void insert_sorted(ItemP head, char* name) {
+    ItemP curr = head;
 
-    // Ako je lista prazna ili novo ime treba biti na početku
-    if (head == NULL || compareNames(newItem->name, head->name) < 0) {
-        newItem->next = head;
-        return newItem;
+    while (curr->next != NULL) {
+        if (strcmp(curr->next->name, name) == 0) {
+            curr->next->quantity++;
+            return;
+        }
+        if (strcmp(curr->next->name, name) > 0) break;
+        curr = curr->next;
     }
 
-    // Pronađi odgovarajuće mjesto za umetanje
-    while (current != NULL && compareNames(newItem->name, current->name) > 0) {
-        prev = current;
-        current = current->next;
-    }
-
-    // Ako postoji oprema s istim imenom, samo povećaj količinu
-    if (current != NULL && compareNames(newItem->name, current->name) == 0) {
-        current->quantity += newItem->quantity;
-        free(newItem);  // Osiguraj da ne dupliramo podatke
-        return head;
-    }
-
-    // Ako nije pronađen isti naziv, umetni novi čvor
-    newItem->next = current;
-    if (prev != NULL) {
-        prev->next = newItem;
-    }
-
-    return head;
+    ItemP newItem = malloc(sizeof(Item));
+    if (!newItem) return;
+    strcpy(newItem->name, name);
+    newItem->quantity = 1;
+    newItem->next = curr->next;
+    curr->next = newItem;
 }
 
-// Funkcija za ispisivanje liste
-void printList(ItemP head) {
-    ItemP current = head;
-    while (current != NULL) {
-        printf("%s %d\n", current->name, current->quantity);
-        current = current->next;
+void print_list(ItemP head) {
+    while (head != NULL) {
+        printf("%s %d\n", head->name, head->quantity);
+        head = head->next;
     }
 }
 
-// Funkcija za oslobađanje memorije
-void freeList(ItemP head) {
+void free_list(ItemP head) {
     ItemP temp;
     while (head != NULL) {
         temp = head;
         head = head->next;
         free(temp);
     }
-}
-
-int main() {
-    FILE *file = fopen("inventura.txt", "r");
-    if (!file) {
-        printf("Failed to open file.\n");
-        return 1;
-    }
-
-    ItemP head = NULL;
-    Item tempItem;
-    
-    while (fscanf(file, "%s %d", tempItem.name, &tempItem.quantity) == 2) {
-        tempItem.next = NULL;
-        head = insertSorted(head, &tempItem);
-    }
-
-    fclose(file);
-
-    // Ispis učitane liste
-    printf("Inventura:\n");
-    printList(head);
-
-    freeList(head);
-    return 0;
 }
