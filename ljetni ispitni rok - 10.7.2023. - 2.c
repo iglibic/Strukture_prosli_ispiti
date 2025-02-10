@@ -22,6 +22,14 @@ typedef struct _employee {
     struct _employee* next;
 } Employee, *EmployeeP;
 
+EmployeeP createEmployee(char* firstName, char* lastName, int year, int month, int day, int salary);
+void insertSorted(EmployeeP* head, EmployeeP newEmployee);
+void printList(EmployeeP head);
+void deleteByName(EmployeeP* head, char* name);
+int generateUniqueSalary(int* usedSalaries, int count);
+void loadEmployeesFromFile(EmployeeP* head, char* filename);
+void freeList(EmployeeP head);
+
 EmployeeP createEmployee(char* firstName, char* lastName, int year, int month, int day, int salary) {
     EmployeeP newEmployee = (EmployeeP)malloc(sizeof(Employee));
     if (!newEmployee) {
