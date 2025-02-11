@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define MAX_NAME 64
+#define FILE_NOT_OPENED (-1)
 
 struct _item;
 typedef struct _item* ItemP;
@@ -13,64 +14,84 @@ typedef struct _item {
     ItemP next;
 } Item;
 
-void insert_sorted(ItemP head, char* name);
-void print_list(ItemP head);
-void free_list(ItemP head);
+int insertSorted(ItemP head, char* name);
+int printList(ItemP head);
+int freeList(ItemP head);
 
-int main() {
-    FILE* file = fopen("inventura.txt", "r");
-    if (!file) {
-        printf("Neuspjelo otvaranje datoteke.\n");
-        return -1;
+int main(){
+    
+    FILE* fp = fopen("inventura.txt", "r");
+    if (fp == NULL) {
+        printf("ERROR! Could not open the file!");
+        return FILE_NOT_OPENED;
     }
 
-    Item head = { "", 0, NULL };
-    char name[MAX_NAME];
-    double price;
+    ItemP head = (ItemP)malloc(sizeof(Item));
+    if (head == NULL) {
+        printf("ERROR! Could not allocate memmory!");
+        return EXIT_FAILURE;
+    }
+    head->next = NULL;
 
-    while (fscanf(file, "%s %lf", name, &price) == 2) {
-        insert_sorted(&head, name);
+    char productName[MAX_NAME];
+    int counter;
+
+    while (fscanf(fp, "%s %d", productName, &counter) == 2) {
+        insertSorted(head, productName);
     }
 
-    fclose(file);
-    print_list(head.next);
-    free_list(head.next);
+    printList(head);
+    freeList(head);
 
-    return 0;
+    fclose(fp);
+
+    return EXIT_SUCCESS;
 }
 
-void insert_sorted(ItemP head, char* name) {
+int insertSorted(ItemP head, char* name) {
     ItemP curr = head;
 
     while (curr->next != NULL) {
         if (strcmp(curr->next->name, name) == 0) {
             curr->next->quantity++;
-            return;
+            return EXIT_SUCCESS;
         }
         if (strcmp(curr->next->name, name) > 0) break;
         curr = curr->next;
     }
 
-    ItemP newItem = malloc(sizeof(Item));
-    if (!newItem) return;
-    strcpy(newItem->name, name);
-    newItem->quantity = 1;
-    newItem->next = curr->next;
-    curr->next = newItem;
+    ItemP newPerson = (ItemP)malloc(sizeof(Item));
+    if (newPerson == NULL) {
+        printf("ERROR! Could not allocate the memmory!");
+        return EXIT_FAILURE;
+    }
+    strcpy(newPerson->name, name);
+    newPerson->quantity = 1;
+    newPerson->next = curr->next;
+    curr->next = newPerson;
+
+    return EXIT_SUCCESS;
 }
 
-void print_list(ItemP head) {
-    while (head != NULL) {
-        printf("%s %d\n", head->name, head->quantity);
-        head = head->next;
+int printList(ItemP head) {
+    ItemP temp = head->next;
+
+    while (temp) {
+        printf("%s %d\n", temp->name, temp->quantity);
+        temp = temp->next;
     }
+
+    return EXIT_SUCCESS;
 }
 
-void free_list(ItemP head) {
-    ItemP temp;
-    while (head != NULL) {
-        temp = head;
-        head = head->next;
-        free(temp);
+int freeList(ItemP head) {
+    ItemP temp = head->next;
+
+    while (temp) {
+        ItemP toFree = temp;
+        temp = temp->next;
+        free(toFree);
     }
+
+    return EXIT_SUCCESS;
 }
