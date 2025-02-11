@@ -3,114 +3,139 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct mjerenja* cvor;
+#define MAX_DATE_LEN 11
 
-typedef struct mjerenja {
-    char datum[20];
-    float dubina;
-    float temperatura;
-    cvor next;
-} mjerenja;
+typedef struct _temperature* TemperatureP;
+typedef struct _temperature {
+    char date[MAX_DATE_LEN]; 
+    float depth;              
+    float temperature;         
+    TemperatureP next;         
+} Temperature;
 
-void dodaj(cvor head, char* datum, float dubina, float temp);
-void ispis(cvor head);
-double prosjecna_temperatura(cvor head);
-void ukloni_manje(cvor head, double temp);
+TemperatureP createElement(char* date, float depth, float temperature);
+void insertSorted(TemperatureP head, char* date, float depth, float temperature);
+void printList(TemperatureP head);
+double averageTemperature(TemperatureP head);
+void removeBelowAvg(TemperatureP head, double avgTemp);
+void freeList(TemperatureP head);
 
 int main() {
-    cvor head = malloc(sizeof(mjerenja));
+    TemperatureP head = malloc(sizeof(Temperature));
     if (!head) return -1;
 
     head->next = NULL;
 
     FILE* file = fopen("temperature.txt", "r");
-    if (!file) return -1;
-
-    char datum[20];
-    float dubina, temperatura;
-
-    while (fscanf(file, "%s %f %f", datum, &dubina, &temperatura) == 3) {
-        dodaj(head, datum, dubina, temperatura);
+    if (!file) {
+        printf("Greska pri otvaranju datoteke!\n");
+        return -1;
     }
 
-    // Ispis svih mjerenja
-    ispis(head);
+    char date[MAX_DATE_LEN];
+    float depth, temperature;
 
-    // Izračunavanje prosječne temperature
-    double pros = prosjecna_temperatura(head);
-    printf("Prosejcna temperatura u 2023. je : %lf\n", pros);
-
-    // Brisanje mjerenja s temperaturom manjom od prosječne
-    ukloni_manje(head, pros);
-    printf("\nLista nakon brisanja onih koji imaju manju temperaturu:\n");
-    ispis(head);
+    while (fscanf(file, "%s %f %f", date, &depth, &temperature) == 3) {
+        insertSorted(head, date, depth, temperature);
+    }
 
     fclose(file);
+
+    printf("Sva mjerenja:\n");
+    printList(head);
+
+    double avgTemp = averageTemperature(head);
+    printf("\nProsjecna temperatura u 2023. godini na dubinama vecim od 50 metara: %.2f\n", avgTemp);
+
+    removeBelowAvg(head, avgTemp);
+    printf("\nLista nakon brisanja mjerenja ispod prosjecne temperature:\n");
+    printList(head);
+
+    freeList(head);
     return 0;
 }
 
-void dodaj(cvor head, char* datum, float dubina, float temp) {
-    cvor novi = malloc(sizeof(mjerenja));
-    if (!novi) return;
+TemperatureP createElement(char* date, float depth, float temperature) {
+    TemperatureP newElement = malloc(sizeof(Temperature));
+    if (!newElement) {
+        printf("Greska pri alociranju memorije!\n");
+        return NULL;
+    }
 
-    novi->dubina = dubina;
-    novi->temperatura = temp;
-    novi->next = NULL;
-    strcpy(novi->datum, datum);
+    strcpy(newElement->date, date);
+    newElement->depth = depth;
+    newElement->temperature = temperature;
+    newElement->next = NULL;
 
-    cvor curr = head;
-    while (curr->next != NULL && strcmp(curr->next->datum, datum) > 0) {
+    return newElement;
+}
+
+void insertSorted(TemperatureP head, char* date, float depth, float temperature) {
+    TemperatureP newElement = createElement(date, depth, temperature);
+    if (!newElement) return;
+
+    TemperatureP curr = head;
+    while (curr->next != NULL && strcmp(curr->next->date, date) < 0) {
         curr = curr->next;
     }
 
-    novi->next = curr->next;
-    curr->next = novi;
+    newElement->next = curr->next;
+    curr->next = newElement;
 }
 
-void ispis(cvor head) {
-    cvor curr = head->next;
+void printList(TemperatureP head) {
+    TemperatureP curr = head->next;
     int i = 1;
-
     while (curr != NULL) {
-        printf("%d. mjerenje:\n", i);
-        printf("Datum: %s\n", curr->datum);
-        printf("Dubina: %.2lf m\n", curr->dubina);
-        printf("Temperatura: %.2lf°C\n\n", curr->temperatura);
+        printf("%d. Mjerenje: \nDatum: %s\nDubina: %.2f m\nTemperatura: %.2f C\n\n", i, curr->date, curr->depth, curr->temperature);
         i++;
         curr = curr->next;
     }
 }
 
-double prosjecna_temperatura(cvor head) {
-    cvor curr = head->next;
-    double temp_sum = 0;
-    int br = 0;
+double averageTemperature(TemperatureP head) {
+    TemperatureP curr = head->next;
+    double totalTemp = 0;
+    int count = 0;
 
     while (curr != NULL) {
-        // Provjera za 2023. godinu i dubinu veću od 50
-        if (strncmp(curr->datum, "2023", 4) == 0 && curr->dubina > 50) {
-            temp_sum += curr->temperatura;
-            br++;
+        if (curr->depth > 50 && strncmp(curr->date, "2023", 4) == 0) {
+            totalTemp += curr->temperature;
+            count++;
         }
         curr = curr->next;
     }
 
-    return (br > 0) ? temp_sum / br : 0.0;  // Provjera kako bi se izbjegao dijeljeni s nulom
+    if (count > 0) {
+        return totalTemp / count;
+    }
+    else {
+        return 0;
+    }
 }
 
-void ukloni_manje(cvor head, double temp) {
-    cvor curr = head->next;
-    cvor prev = head;
+void removeBelowAvg(TemperatureP head, double avgTemp) {
+    TemperatureP curr = head->next;
+    TemperatureP prev = head;
 
     while (curr != NULL) {
-        if (curr->temperatura < temp) {
+        if (curr->temperature < avgTemp) {
             prev->next = curr->next;
             free(curr);
-            curr = prev->next;  // Pomicanje na sljedeći element
+            curr = prev->next;
         }
         else {
             prev = curr;
             curr = curr->next;
         }
+    }
+}
+
+void freeList(TemperatureP head) {
+    TemperatureP curr = head;
+    while (curr != NULL) {
+        TemperatureP temp = curr;
+        curr = curr->next;
+        free(temp);
     }
 }
