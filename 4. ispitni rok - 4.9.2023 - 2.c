@@ -1,23 +1,54 @@
-
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_WORD_LEN 50
+#define MAX_WORD_LEN 20
+#define TOP_WORDS_COUNT 5
 
-struct _word;
-typedef struct _word* WordP;
-typedef struct _word {
+typedef struct _rijec* RijecP;
+typedef struct _rijec {
     char word[MAX_WORD_LEN];
     int count;
-    WordP next;
-} Word;
+    RijecP next;
+} Rijec;
 
-// Funkcija za stvaranje novog čvora
-WordP createWordNode(const char* word) {
-    WordP newWord = (WordP)malloc(sizeof(Word));
+RijecP createWord(char* word);
+RijecP insertWord(RijecP head, char* word);
+void printList(RijecP head);
+RijecP moveTopWords(RijecP head);
+void freeList(RijecP head);
+
+int main() {
+    RijecP head = NULL;
+    FILE* file = fopen("rijeci.txt", "r");
+
+    if (!file) {
+        printf("Ne mogu otvoriti datoteku\n");
+        return 1;
+    }
+
+    char word[MAX_WORD_LEN];
+    while (fscanf(file, "%s", word) == 1) {
+        head = insertWord(head, word);
+    }
+    fclose(file);
+
+    printf("Vezana lista rijeci:\n");
+    printList(head);
+
+    head = moveTopWords(head);
+    printf("\nLista nakon pomicanja najcescih rijeci:\n");
+    printList(head);
+
+    freeList(head);
+    return 0;
+}
+
+RijecP createWord(char* word) {
+    RijecP newWord = (RijecP)malloc(sizeof(Rijec));
     if (!newWord) {
-        printf("Neuspješna alokacija memorije!\n");
+        printf("Neuspjela alokacija memorije\n");
         return NULL;
     }
     strcpy(newWord->word, word);
@@ -26,117 +57,75 @@ WordP createWordNode(const char* word) {
     return newWord;
 }
 
-// Funkcija za dodavanje riječi u vezanu listu (ili povećavanje brojača ako postoji)
-void insertOrUpdateWord(WordP* head, const char* word) {
-    WordP current = *head;
-    WordP prev = NULL;
+RijecP insertWord(RijecP head, char* word) {
+    RijecP current = head, previous = NULL;
 
-    while (current != NULL) {
+    while (current) {
         if (strcmp(current->word, word) == 0) {
             current->count++;
-            return;
+            return head;
         }
-        prev = current;
+        previous = current;
         current = current->next;
     }
 
-    WordP newWord = createWordNode(word);
-    if (!newWord) return;
+    RijecP newWord = createWord(word);
+    if (!newWord) return head;
 
-    if (prev) {
-        prev->next = newWord;
-    } else {
-        *head = newWord;
-    }
+    if (!previous) return newWord;
+    previous->next = newWord;
+    return head;
 }
 
-// Funkcija za učitavanje riječi iz datoteke
-void loadWords(const char* filename, WordP* head) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        printf("Ne mogu otvoriti datoteku %s!\n", filename);
-        return;
-    }
-
-    char word[MAX_WORD_LEN];
-    while (fscanf(file, "%s", word) == 1) {
-        insertOrUpdateWord(head, word);
-    }
-
-    fclose(file);
-}
-
-// Funkcija za ispis liste
-void printWords(WordP head) {
+void printList(RijecP head) {
     while (head) {
         printf("%s (%d)\n", head->word, head->count);
         head = head->next;
     }
 }
 
-// Funkcija za pronalaženje pet najčešćih riječi i njihovo pomicanje na početak liste
-void moveTopFiveToFront(WordP* head) {
-    WordP sorted = NULL;
+RijecP moveTopWords(RijecP head) {
+    if (!head) return NULL;
 
-    for (int i = 0; i < 5; i++) {
-        WordP maxNode = NULL;
-        WordP maxPrev = NULL;
-        WordP current = *head;
-        WordP prev = NULL;
+    RijecP sorted = NULL, sortedTail = NULL, rest = head;
 
-        while (current != NULL) {
+    for (int i = 0; i < TOP_WORDS_COUNT; i++) {
+        RijecP maxNode = NULL, prevMax = NULL, current = rest, prev = NULL;
+
+        while (current) {
             if (!maxNode || current->count > maxNode->count) {
                 maxNode = current;
-                maxPrev = prev;
+                prevMax = prev;
             }
             prev = current;
             current = current->next;
         }
 
-        if (!maxNode) return;
+        if (!maxNode) break; // Ako nema više elemenata, prekini  
 
-        if (maxPrev) {
-            maxPrev->next = maxNode->next;
-        } else {
-            *head = maxNode->next;
+        if (prevMax) prevMax->next = maxNode->next;
+        else rest = maxNode->next; // Ako je maxNode bio prvi, pomakni početak  
+
+        maxNode->next = NULL;
+
+        if (!sorted) {
+            sorted = maxNode;
+            sortedTail = maxNode;
         }
-
-        maxNode->next = sorted;
-        sorted = maxNode;
+        else {
+            sortedTail->next = maxNode;
+            sortedTail = maxNode;
+        }
     }
 
-    WordP tail = sorted;
-    while (tail && tail->next) {
-        tail = tail->next;
-    }
-    if (tail) {
-        tail->next = *head;
-        *head = sorted;
-    }
+    if (sortedTail) sortedTail->next = rest;
+    return sorted ? sorted : head;
 }
 
-// Funkcija za oslobađanje memorije
-void freeList(WordP head) {
+void freeList(RijecP head) {
     while (head) {
-        WordP temp = head;
-        head = head->next;
-        free(temp);
+        RijecP next = head->next;
+        free(head);
+        head = next;
     }
-}
-
-int main() {
-    WordP wordList = NULL;
-    
-    loadWords("rijeci.txt", &wordList);
-    
-    printf("Lista prije pomicanja najčešćih riječi:\n");
-    printWords(wordList);
-    
-    moveTopFiveToFront(&wordList);
-    
-    printf("\nLista nakon pomicanja najčešćih riječi:\n");
-    printWords(wordList);
-    
-    freeList(wordList);
-    return 0;
 }
