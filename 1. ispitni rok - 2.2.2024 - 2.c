@@ -1,4 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS  
 #include <stdio.h>  
 #include <stdlib.h>  
 #include <string.h>  
@@ -19,7 +18,6 @@ typedef struct _person {
 PersonP createPerson(char* firstName, char* lastName, char* birthDate, int idNumber);
 PersonP insertSorted(PersonP head, PersonP newPerson);
 void loadData(const char* filename, PersonP head);
-PersonP findPrevious(PersonP head, PersonP toDelete);
 int deletePerson(PersonP head, int idNumber);
 void printList(PersonP head);
 void freeList(PersonP head);
@@ -92,7 +90,7 @@ void loadData(const char* filename, PersonP head) {
     while (fscanf(file, "%s %s %s", firstName, lastName, birthDate) == 3) {
         do {
             assignedID = (rand() % 81) + 100;
-        } while (head->Next && head->Next->idNumber == assignedID); // Održavanje jedinstvenosti ID-a unutar prvog čvora  
+        } while (head->Next && head->Next->idNumber == assignedID);
 
         PersonP newPerson = createPerson(firstName, lastName, birthDate, assignedID);
         insertSorted(head, newPerson);
@@ -112,14 +110,6 @@ void printList(PersonP head) {
     }
 }
 
-PersonP findPrevious(PersonP head, PersonP toDelete) {
-    PersonP current = head->Next;
-    while (current != NULL && current->Next != toDelete) {
-        current = current->Next;
-    }
-    return current;
-}
-
 int deletePerson(PersonP head, int idNumber) {
     if (head == NULL) {
         printf("Lista je prazna.\n");
@@ -127,8 +117,11 @@ int deletePerson(PersonP head, int idNumber) {
     }
 
     PersonP current = head->Next;
+    PersonP previous = head; // Početni čvor je head  
+
     while (current != NULL && current->idNumber != idNumber) {
-        current = current->Next;
+        previous = current; // Premestimo previous na trenutni čvor  
+        current = current->Next; // Idemo na sledeći čvor  
     }
 
     if (current == NULL) {
@@ -136,15 +129,10 @@ int deletePerson(PersonP head, int idNumber) {
         return -1;
     }
 
-    PersonP previous = findPrevious(head, current);
-    if (previous == NULL) {
-        head->Next = current->Next;
-    }
-    else {
-        previous->Next = current->Next;
-    }
+    // Sada možemo ažurirati pokazivače bez provere za NULL  
+    previous->Next = current->Next; // Preskočimo trenutni čvor  
 
-    free(current);
+    free(current); // Oslobađanje memorije  
     return EXIT_SUCCESS;
 }
 
