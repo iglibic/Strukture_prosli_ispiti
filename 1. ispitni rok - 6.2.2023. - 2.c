@@ -1,65 +1,136 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>  
+#include <stdlib.h>  
+#include <string.h>  
 
-#define MAX_NAME_LEN 64
-#define NUM_SUBJECTS 3
-
-struct student;
-typedef struct _student* StudentP;
+#define MAX_NAME_LEN (32)  
+#define MAX_SUBJECTS (3)  
 
 typedef struct _student {
     char firstName[MAX_NAME_LEN];
     char lastName[MAX_NAME_LEN];
-    int Subject[NUM_SUBJECTS];  // Ocjene za 3 predmeta
-    StudentP Next;
+    int grades[MAX_SUBJECTS]; // Ocene iz različitih predmeta  
+    struct _student* Next;
 } Student;
 
-// Funkcija za umetanje studenta u listu
-StudentP insertStudent(StudentP head, Student* newStudent) {
-    StudentP current = head, prev = NULL;
+typedef Student* StudentP;
 
-    // Ako je lista prazna ili novo ime treba biti na početku
-    if (head == NULL || strcmp(newStudent->lastName, head->lastName) < 0) {
-        newStudent->Next = head;
-        return newStudent;
+StudentP createStudent(char* firstName, char* lastName, int grades[]);
+void insertStudent(StudentP head, StudentP newStudent);
+void loadStudents(const char* filename, StudentP head, int subjectIndex);
+StudentP combineLists(StudentP lists[], int numberOfSubjects);
+void printList(StudentP head);
+void freeList(StudentP head);
+
+int main() {
+    StudentP heads[MAX_SUBJECTS]; // Liste za svaku temu  
+    for (int i = 0; i < MAX_SUBJECTS; i++) {
+        heads[i] = (StudentP)malloc(sizeof(Student));
+        heads[i]->Next = NULL; // Prvi čvor kao "dummy" čvor  
     }
 
-    // Pronađi odgovarajuće mjesto za umetanje
-    while (current != NULL && strcmp(newStudent->lastName, current->lastName) > 0) {
-        prev = current;
-        current = current->Next;
-    }
+    loadStudents("Subject1.txt", heads[0], 0);
+    loadStudents("Subject2.txt", heads[1], 1);
+    loadStudents("Subject3.txt", heads[2], 2);
 
-    // Ako je student već prisutan u listi, grupiraj njegove ocjene
-    if (current != NULL && strcmp(newStudent->lastName, current->lastName) == 0 && strcmp(newStudent->firstName, current->firstName) == 0) {
-        for (int i = 0; i < NUM_SUBJECTS; i++) {
-            if (current->Subject[i] == 0 && newStudent->Subject[i] != 0) {
-                current->Subject[i] = newStudent->Subject[i];  // Dodaj ocjenu
-            }
-        }
-        free(newStudent);  // Osiguraj da ne dupliramo podatke
-        return head;
-    }
+    StudentP combinedList = combineLists(heads, MAX_SUBJECTS);
+    printf("Finalna lista studenata:\n");
+    printList(combinedList);
 
-    // Ako nije pronađen isti student, umetni novi čvor
-    newStudent->Next = current;
-    if (prev != NULL) {
-        prev->Next = newStudent;
+    for (int i = 0; i < MAX_SUBJECTS; i++) {
+        freeList(heads[i]);
     }
+    freeList(combinedList);
 
-    return head;
+    return 0;
 }
 
-// Funkcija za ispisivanje liste
+StudentP createStudent(char* firstName, char* lastName, int grades[]) {
+    StudentP newStudent = (StudentP)malloc(sizeof(Student));
+    if (newStudent == NULL) {
+        printf("ERROR! Could not allocate the memory for a student!");
+        return NULL;
+    }
+
+    strcpy(newStudent->firstName, firstName);
+    strcpy(newStudent->lastName, lastName);
+    memcpy(newStudent->grades, grades, sizeof(int) * MAX_SUBJECTS);
+    newStudent->Next = NULL;
+    return newStudent;
+}
+
+void insertStudent(StudentP head, StudentP newStudent) {
+    newStudent->Next = head->Next; // Umetni kao prvi čvor nakon dummy  
+    head->Next = newStudent;
+}
+
+void loadStudents(const char* filename, StudentP head, int subjectIndex) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        perror("Ne mogu otvoriti datoteku");
+        return;
+    }
+
+    char firstName[MAX_NAME_LEN];
+    char lastName[MAX_NAME_LEN];
+    int grades[MAX_SUBJECTS] = { 1, 1, 1 }; // Podrazumevane ocene su 1  
+
+    while (fscanf(file, "%s %s %d", firstName, lastName, &grades[subjectIndex]) == 3) {
+        StudentP newStudent = createStudent(firstName, lastName, grades);
+        insertStudent(head, newStudent);
+    }
+
+    fclose(file);
+}
+
+StudentP combineLists(StudentP lists[], int numberOfSubjects) {
+    StudentP combinedHead = (StudentP)malloc(sizeof(Student));
+    combinedHead->Next = NULL; // dummy head  
+
+    // Koristimo hash mapu da pratimo koji studenti su već dodati  
+    for (int i = 0; i < numberOfSubjects; i++) {
+        StudentP current = lists[i]->Next;
+        while (current != NULL) {
+            // Proveravamo da li je student već u kombinovanoj listi  
+            StudentP exist = combinedHead->Next;
+            int found = 0;
+            while (exist != NULL) {
+                if (strcmp(exist->firstName, current->firstName) == 0 &&
+                    strcmp(exist->lastName, current->lastName) == 0) {
+                    // Ako postoji, samo ažuriramo ocenu iz trenutnog predmeta  
+                    exist->grades[i] = current->grades[i];
+                    found = 1;
+                    break;
+                }
+                exist = exist->Next;
+            }
+
+            // Ako student nije pronađen, umetnemo novog  
+            if (!found) {
+                StudentP newStudent = createStudent(current->firstName, current->lastName, current->grades);
+                insertStudent(combinedHead, newStudent);
+            }
+
+            current = current->Next;
+        }
+    }
+
+    return combinedHead; // Vraća kombinovanu listu  
+}
+
 void printList(StudentP head) {
-    StudentP current = head;
+    if (head == NULL || head->Next == NULL) {
+        printf("Lista je prazna.\n");
+        return;
+    }
+
+    StudentP current = head->Next; // Preskoči dummy  
     while (current != NULL) {
-        printf("- %s %s (", current->lastName, current->firstName);
-        for (int i = 0; i < NUM_SUBJECTS; i++) {
-            printf("%d", current->Subject[i]);
-            if (i < NUM_SUBJECTS - 1) {
-                printf(", ");
+        printf("%s %s (", current->lastName, current->firstName);
+        for (int i = 0; i < MAX_SUBJECTS; i++) {
+            printf("%d", current->grades[i]);
+            if (i < MAX_SUBJECTS - 1) {
+                printf(", "); // Dodaj zarez između ocena  
             }
         }
         printf(")\n");
@@ -67,47 +138,11 @@ void printList(StudentP head) {
     }
 }
 
-// Funkcija za oslobađanje memorije
 void freeList(StudentP head) {
-    StudentP temp;
-    while (head != NULL) {
-        temp = head;
-        head = head->Next;
-        free(temp);
+    StudentP current = head;
+    while (current != NULL) {
+        StudentP next = current->Next;
+        free(current);
+        current = next;
     }
-}
-
-// Funkcija za učitavanje podataka iz datoteke
-StudentP loadDataFromFile(const char* fileName, StudentP head, int subjectIndex) {
-    FILE *file = fopen(fileName, "r");
-    if (!file) {
-        printf("Failed to open file %s.\n", fileName);
-        return head;
-    }
-
-    Student tempStudent;
-    while (fscanf(file, "%s %s %d", tempStudent.firstName, tempStudent.lastName, &tempStudent.Subject[subjectIndex]) == 3) {
-        tempStudent.Subject[0] = tempStudent.Subject[1] = tempStudent.Subject[2] = 0;  // Inicijaliziraj sve ocjene na 0
-        tempStudent.Next = NULL;
-        head = insertStudent(head, &tempStudent);
-    }
-
-    fclose(file);
-    return head;
-}
-
-int main() {
-    StudentP head = NULL;
-
-    // Učitaj podatke iz svih triju datoteka
-    head = loadDataFromFile("Subject1.txt", head, 0);
-    head = loadDataFromFile("Subject2.txt", head, 1);
-    head = loadDataFromFile("Subject3.txt", head, 2);
-
-    // Ispis svih studenata
-    printf("Student List:\n");
-    printList(head);
-
-    freeList(head);
-    return 0;
 }
