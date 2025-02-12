@@ -19,35 +19,34 @@ typedef struct _person {
 PersonP createPerson(char* firstName, char* lastName, char* birthDate, int idNumber);
 PersonP insertSorted(PersonP head, PersonP newPerson);
 void loadData(const char* filename, PersonP head);
-PersonP findPrevious(PersonP head, PersonP toDelete);  
-int deletePerson(PersonP head, int idNumber);  
+PersonP findPrevious(PersonP head, PersonP toDelete);
+int deletePerson(PersonP head, int idNumber);
 void printList(PersonP head);
 void freeList(PersonP head);
 
 int main() {
-
     PersonP head = (PersonP)malloc(sizeof(Person));
     if (head == NULL) {
         printf("ERROR! Could not allocate the memory for head!");
         return 1;
     }
-    head->Next = NULL; 
+    head->Next = NULL;
 
-    loadData("Osobe.txt", head);  
+    loadData("Osobe.txt", head);
 
     printf("Lista osoba:\n");
-    printList(head->Next);  
+    printList(head->Next);
 
     int idToDelete;
     printf("Unesite ID osobe koju želite obrisati: ");
     scanf("%d", &idToDelete);
-    head = deletePerson(head, idToDelete);
+    deletePerson(head, idToDelete);
 
     printf("\nNova lista osoba:\n");
-    printList(head->Next);  
+    printList(head->Next);
 
     freeList(head->Next);
-    free(head);  
+    free(head);
 
     return 0;
 }
@@ -93,7 +92,7 @@ void loadData(const char* filename, PersonP head) {
     while (fscanf(file, "%s %s %s", firstName, lastName, birthDate) == 3) {
         do {
             assignedID = (rand() % 81) + 100;
-        } while ((head->Next) && (head->Next->idNumber == assignedID));
+        } while (head->Next && head->Next->idNumber == assignedID); // Održavanje jedinstvenosti ID-a unutar prvog čvora  
 
         PersonP newPerson = createPerson(firstName, lastName, birthDate, assignedID);
         insertSorted(head, newPerson);
@@ -103,46 +102,52 @@ void loadData(const char* filename, PersonP head) {
 }
 
 void printList(PersonP head) {
+    if (head == NULL) {
+        printf("Lista je prazna.\n");
+        return;
+    }
     while (head != NULL) {
         printf("ID: %d, Name: %s %s, Birth Date: %s\n", head->idNumber, head->firstName, head->lastName, head->birthDate);
         head = head->Next;
     }
 }
 
-PersonP findPrevious(PersonP head, PersonP toDelete) {  
-    PersonP current = head->Next;  
-    while (current != NULL && current->Next != toDelete) {  
-        current = current->Next;  
-    }  
-    return current;  
-}  
+PersonP findPrevious(PersonP head, PersonP toDelete) {
+    PersonP current = head->Next;
+    while (current != NULL && current->Next != toDelete) {
+        current = current->Next;
+    }
+    return current;
+}
 
-int deletePerson(PersonP head, int idNumber) {  
-    if (head == NULL) {  
-        printf("Lista je prazna.\n");  
-        return -1;  
-    }  
+int deletePerson(PersonP head, int idNumber) {
+    if (head == NULL) {
+        printf("Lista je prazna.\n");
+        return -1;
+    }
 
-    PersonP current = head->Next;   
-    while (current != NULL && current->idNumber != idNumber) {  
-        current = current->Next;  
-    }  
+    PersonP current = head->Next;
+    while (current != NULL && current->idNumber != idNumber) {
+        current = current->Next;
+    }
 
-    if (current == NULL) {  
-        printf("Osoba s ID-em %d nije pronađena.\n", idNumber);  
-        return -1;  
-    }  
+    if (current == NULL) {
+        printf("Osoba s ID-em %d nije pronađena.\n", idNumber);
+        return -1;
+    }
 
-    PersonP previous = findPrevious(head, current);  
-    if (previous == NULL) {  
-        head->Next = current->Next;  
-    } else {  
-        previous->Next = current->Next;  
-    }  
-    
-    free(current);  
-    return EXIT_SUCCESS;  
-}  
+    PersonP previous = findPrevious(head, current);
+    if (previous == NULL) {
+        head->Next = current->Next;
+    }
+    else {
+        previous->Next = current->Next;
+    }
+
+    free(current);
+    return EXIT_SUCCESS;
+}
+
 void freeList(PersonP head) {
     PersonP current = head;
     while (current != NULL) {
