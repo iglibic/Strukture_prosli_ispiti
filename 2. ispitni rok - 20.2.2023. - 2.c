@@ -1,142 +1,152 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<time.h>
 
-#define MAX_NAME_LEN 32
+#define maks 32
 
-struct _kategorija;
-typedef struct _kategorija* KategorijaP;
-typedef struct _kategorija {
-    char imeKategorije[MAX_NAME_LEN];
-    int minCijena;
-    int maxCijena;
-    float avgCijena;
-    KategorijaP next;
-    struct _proizvod* child;
-} Kategorija;
+typedef struct kategorija* cvor;
+typedef struct proizvod* cvor_pro;
 
-struct _proizvod;
-typedef struct _proizvod* ProizvodP;
-typedef struct _proizvod {
-    char proizvodIme[MAX_NAME_LEN];
-    int cijena;
-    ProizvodP next;
-} Proizvod;
+typedef struct kategorija {
+    char ime_kategorije[maks];
+    int price_min;
+    int price_max;
+    double avgCijena;
+    cvor next;
+    cvor_pro proizvod_head;
+} kategorija;
 
-// Funkcija za generiranje slučajne cijene unutar danog opsega
-int generateRandomPrice(int min, int max) {
-    return rand() % (max - min + 1) + min;
-}
+typedef struct proizvod {
+    char proizvod_ime[maks];
+    int cjena;
+    cvor_pro next;
+} proizvod;
 
-// Funkcija za umetanje kategorije u sortiranu listu
-KategorijaP insertCategory(KategorijaP head, Kategorija* newCategory) {
-    KategorijaP current = head, prev = NULL;
-    
-    // Ako je lista prazna ili novo ime treba biti na početku
-    if (head == NULL || strcmp(newCategory->imeKategorije, head->imeKategorije) < 0) {
-        newCategory->next = head;
-        return newCategory;
-    }
-
-    // Pronađi odgovarajuće mjesto za umetanje
-    while (current != NULL && strcmp(newCategory->imeKategorije, current->imeKategorije) > 0) {
-        prev = current;
-        current = current->next;
-    }
-
-    // Umetni novu kategoriju
-    newCategory->next = current;
-    if (prev != NULL) {
-        prev->next = newCategory;
-    }
-
-    return head;
-}
-
-// Funkcija za dodavanje proizvoda u kategoriju
-ProizvodP insertProduct(ProizvodP head, Proizvod* newProduct) {
-    newProduct->next = head;
-    return newProduct;
-}
-
-// Funkcija za učitavanje kategorija iz datoteke
-KategorijaP loadCategories(const char* filename) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        printf("Failed to open file %s.\n", filename);
-        return NULL;
-    }
-
-    KategorijaP head = NULL;
-    Kategorija tempCategory;
-
-    while (fscanf(file, "%s %d %d", tempCategory.imeKategorije, &tempCategory.minCijena, &tempCategory.maxCijena) == 3) {
-        tempCategory.avgCijena = (tempCategory.minCijena + tempCategory.maxCijena) / 2.0;
-        tempCategory.next = NULL;
-        tempCategory.child = NULL;
-        head = insertCategory(head, &tempCategory);
-    }
-
-    fclose(file);
-    return head;
-}
-
-// Funkcija za učitavanje proizvoda iz datoteke
-void loadProducts(KategorijaP categories, const char* filename) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        printf("Failed to open file %s.\n", filename);
-        return;
-    }
-
-    char categoryName[MAX_NAME_LEN];
-    Proizvod tempProduct;
-    KategorijaP category;
-    
-    while (fscanf(file, "%s %s", categoryName, tempProduct.proizvodIme) == 2) {
-        fscanf(file, "%d %d", &tempProduct.cijena, &tempProduct.cijena);  // Pretpostavljamo cijenu
-
-        // Potraži kategoriju
-        category = categories;
-        while (category != NULL && strcmp(category->imeKategorije, categoryName) != 0) {
-            category = category->next;
-        }
-
-        // Ako kategorija postoji, dodaj proizvod
-        if (category != NULL) {
-            tempProduct.cijena = generateRandomPrice(category->minCijena, category->maxCijena);
-            category->child = insertProduct(category->child, &tempProduct);
-        }
-    }
-
-    fclose(file);
-}
-
-// Funkcija za ispis kategorija i proizvoda
-void printCategories(KategorijaP head) {
-    KategorijaP category = head;
-    while (category != NULL) {
-        printf("Kategorija: %s (Min: %d, Max: %d)\n", category->imeKategorije, category->minCijena, category->maxCijena);
-        ProizvodP product = category->child;
-        while (product != NULL) {
-            printf("    Proizvod: %s, Cijena: %d\n", product->proizvodIme, product->cijena);
-            product = product->next;
-        }
-        category = category->next;
-    }
-}
+void unos(cvor, char*, int, int);
+void unos_proizvod(cvor_pro, char*);
+void ispis(cvor);
+void radnom_dodjeli(cvor_pro, int, int);
+void give_rand(cvor);
+void avg_price(cvor);
+void prebaci_kategoriju(cvor);
 
 int main() {
-    srand(time(NULL)); // Inicijalizacija generatora slučajnih brojeva
+    srand(time(NULL));
 
-    KategorijaP categories = loadCategories("kategorije.txt");
-    loadProducts(categories, "proizvodi.txt");
+    cvor head = malloc(sizeof(kategorija));
+    if (!head) return -1;
+    head->next = NULL;
 
-    printf("Kategorije i proizvodi:\n");
-    printCategories(categories);
+    // Unos kategorija iz datoteke
+    FILE* file = fopen("kategorije.txt", "r");
+    if (!file) return -1;
 
-    // Oslobađanje memorije bi išlo ovdje (nisam implementirao oslobodjenje memorije u ovom dijelu)
+    char temp_name[maks];
+    int min, max;
+    while (fscanf(file, "%s %d %d", temp_name, &min, &max) == 3) {
+        unos(head, temp_name, min, max);
+    }
+    fclose(file);
+
+    // Generiranje slučajnih cijena i prosječne cijene
+    give_rand(head);
+
+    // Ispis podataka - ispišite samo jednom
+    ispis(head);
 
     return 0;
+}
+
+void unos(cvor head, char* ime_kategorije, int min, int max) {
+    cvor novi = malloc(sizeof(kategorija));
+    if (!novi) return;
+    novi->next = NULL;
+    novi->price_min = min;
+    novi->price_max = max;
+    strcpy(novi->ime_kategorije, ime_kategorije);
+
+    // Sortiranje kategorija prema abecedi
+    cvor curr = head;
+    while (curr->next != NULL && strcmp(curr->next->ime_kategorije, ime_kategorije) < 0) {
+        curr = curr->next;
+    }
+
+    novi->next = curr->next;
+    curr->next = novi;
+
+    // Inicijalizacija liste proizvoda za kategoriju
+    novi->proizvod_head = malloc(sizeof(proizvod));
+    if (!novi->proizvod_head) return;
+    novi->proizvod_head->next = NULL;
+
+    // Unos proizvoda iz datoteke
+    FILE* file = fopen("proizvodi.txt", "r");
+    if (!file) return;
+
+    char kat_tmp[maks];
+    char prozvod_tmp[maks];
+
+    while (fscanf(file, "%s %s", kat_tmp, prozvod_tmp) == 2) {
+        if (strcmp(novi->ime_kategorije, kat_tmp) == 0) {
+            unos_proizvod(novi->proizvod_head, prozvod_tmp);
+        }
+    }
+    fclose(file);
+}
+
+void unos_proizvod(cvor_pro head, char* ime_proizvoda) {
+    cvor_pro novi = malloc(sizeof(proizvod));
+    if (!novi) return;
+
+    strcpy(novi->proizvod_ime, ime_proizvoda);
+    novi->next = head->next;
+    head->next = novi;
+}
+
+void ispis(cvor head) {
+    cvor curr = head->next;
+    while (curr != NULL) {
+        printf("Kategorija: %s\n", curr->ime_kategorije);
+
+        cvor_pro currp = curr->proizvod_head->next;
+        while (currp != NULL) {
+            printf("%s - %d\n", currp->proizvod_ime, currp->cjena);
+            currp = currp->next;
+        }
+
+        printf("\n");
+        curr = curr->next;
+    }
+}
+
+void radnom_dodjeli(cvor_pro head, int min, int max) {
+    cvor_pro curr = head->next;
+    int* zauzeti = malloc((max - min) * sizeof(int));
+    if (!zauzeti) return;
+
+    memset(zauzeti, 0, (max - min) * sizeof(int));
+
+    while (curr != NULL) {
+        int trentuni;
+        do {
+            trentuni = min + rand() % (max - min);
+        } while (zauzeti[trentuni - min]);
+
+        zauzeti[trentuni - min] = 1;
+        curr->cjena = trentuni;
+
+        curr = curr->next;
+    }
+
+    free(zauzeti);
+}
+
+void give_rand(cvor head) {
+    cvor curr = head->next;
+    while (curr != NULL) {
+        radnom_dodjeli(curr->proizvod_head, curr->price_min, curr->price_max);
+        curr = curr->next;
+    }
 }
