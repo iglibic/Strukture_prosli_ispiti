@@ -19,7 +19,8 @@ typedef struct _person {
 PersonP createPerson(char* firstName, char* lastName, char* birthDate, int idNumber);
 PersonP insertSorted(PersonP head, PersonP newPerson);
 void loadData(const char* filename, PersonP head);
-PersonP deletePerson(PersonP head, int idNumber);
+PersonP findPrevious(PersonP head, PersonP toDelete);  
+int deletePerson(PersonP head, int idNumber);  
 void printList(PersonP head);
 void freeList(PersonP head);
 
@@ -108,25 +109,40 @@ void printList(PersonP head) {
     }
 }
 
-PersonP deletePerson(PersonP head, int idNumber) {
+PersonP findPrevious(PersonP head, PersonP toDelete) {  
     PersonP current = head->Next;  
-    PersonP previous = head; 
+    while (current != NULL && current->Next != toDelete) {  
+        current = current->Next;  
+    }  
+    return current;  
+}  
 
-    while (current != NULL && current->idNumber != idNumber) {
-        previous = current;
-        current = current->Next;
-    }
+int deletePerson(PersonP head, int idNumber) {  
+    if (head == NULL) {  
+        printf("Lista je prazna.\n");  
+        return -1;  
+    }  
 
-    if (current == NULL) {
-        printf("Osoba s ID-em %d nije pronađena.\n", idNumber);
-        return head;
-    }
+    PersonP current = head->Next;   
+    while (current != NULL && current->idNumber != idNumber) {  
+        current = current->Next;  
+    }  
 
-    previous->Next = current->Next;
-    free(current);
-    return head;
-}
+    if (current == NULL) {  
+        printf("Osoba s ID-em %d nije pronađena.\n", idNumber);  
+        return -1;  
+    }  
 
+    PersonP previous = findPrevious(head, current);  
+    if (previous == NULL) {  
+        head->Next = current->Next;  
+    } else {  
+        previous->Next = current->Next;  
+    }  
+    
+    free(current);  
+    return EXIT_SUCCESS;  
+}  
 void freeList(PersonP head) {
     PersonP current = head;
     while (current != NULL) {
