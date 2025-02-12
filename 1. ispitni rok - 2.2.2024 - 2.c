@@ -1,123 +1,137 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#define _CRT_SECURE_NO_WARNINGS  
+#include <stdio.h>  
+#include <stdlib.h>  
+#include <string.h>  
 
-#define MAX_NAME_LEN (32)
+#define MAX_NAME_LEN (32)  
+#define MAX_DATE_LEN (11)  
 
-typedef struct _date {
-    int day;
-    int month;
-    int year;
-} Date;
-
-struct _person;
+typedef struct _person;
 typedef struct _person* PersonP;
-
 typedef struct _person {
     char firstName[MAX_NAME_LEN];
     char lastName[MAX_NAME_LEN];
     int idNumber;
-    Date birthDate;
+    char birthDate[MAX_DATE_LEN];
     PersonP Next;
 } Person;
 
-void freeList(PersonP head) {
-    PersonP temp;
-    while (head != NULL) {
-        temp = head;
-        head = head->Next;
-        free(temp);
+PersonP createPerson(char* firstName, char* lastName, char* birthDate, int idNumber);
+PersonP insertSorted(PersonP head, PersonP newPerson);
+void loadData(const char* filename, PersonP head);
+PersonP deletePerson(PersonP head, int idNumber);
+void printList(PersonP head);
+void freeList(PersonP head);
+
+int main() {
+
+    PersonP head = (PersonP)malloc(sizeof(Person));
+    if (head == NULL) {
+        printf("ERROR! Could not allocate the memory for head!");
+        return 1;
     }
+    head->Next = NULL; 
+
+    loadData("Osobe.txt", head);  
+
+    printf("Lista osoba:\n");
+    printList(head->Next);  
+
+    int idToDelete;
+    printf("Unesite ID osobe koju želite obrisati: ");
+    scanf("%d", &idToDelete);
+    head = deletePerson(head, idToDelete);
+
+    printf("\nNova lista osoba:\n");
+    printList(head->Next);  
+
+    freeList(head->Next);
+    free(head);  
+
+    return 0;
 }
 
-void printList(PersonP head) {
+PersonP createPerson(char* firstName, char* lastName, char* birthDate, int idNumber) {
+    PersonP newPerson = (PersonP)malloc(sizeof(Person));
+    if (newPerson == NULL) {
+        printf("ERROR! Could not allocate the memory!");
+        return NULL;
+    }
+
+    strcpy(newPerson->firstName, firstName);
+    strcpy(newPerson->lastName, lastName);
+    strcpy(newPerson->birthDate, birthDate);
+    newPerson->idNumber = idNumber;
+    newPerson->Next = NULL;
+    return newPerson;
+}
+
+PersonP insertSorted(PersonP head, PersonP newPerson) {
     PersonP current = head;
-    while (current != NULL) {
-        printf("ID: %d | Name: %s %s | Birth Date: %02d/%02d/%04d\n",
-               current->idNumber, current->firstName, current->lastName,
-               current->birthDate.day, current->birthDate.month, current->birthDate.year);
+    while (current->Next != NULL && strcmp(newPerson->birthDate, current->Next->birthDate) > 0) {
         current = current->Next;
     }
-}
 
-int compareDates(Date d1, Date d2) {
-    if (d1.year != d2.year) return d1.year - d2.year;
-    if (d1.month != d2.month) return d1.month - d2.month;
-    return d1.day - d2.day;
-}
-
-PersonP insertSorted(PersonP head, Person* newPerson) {
-    PersonP current = head;
-    if (head == NULL || compareDates(newPerson->birthDate, head->birthDate) < 0) {
-        newPerson->Next = head;
-        return newPerson;
-    }
-
-    while (current->Next != NULL && compareDates(newPerson->birthDate, current->Next->birthDate) > 0) {
-        current = current->Next;
-    }
     newPerson->Next = current->Next;
     current->Next = newPerson;
     return head;
 }
 
-PersonP deletePersonByID(PersonP head, int id) {
-    PersonP current = head;
-    PersonP prev = NULL;
-    
-    while (current != NULL && current->idNumber != id) {
-        prev = current;
+void loadData(const char* filename, PersonP head) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        perror("Ne mogu otvoriti datoteku");
+        return;
+    }
+
+    char firstName[MAX_NAME_LEN];
+    char lastName[MAX_NAME_LEN];
+    char birthDate[MAX_DATE_LEN];
+    int assignedID;
+
+    while (fscanf(file, "%s %s %s", firstName, lastName, birthDate) == 3) {
+        do {
+            assignedID = (rand() % 81) + 100;
+        } while ((head->Next) && (head->Next->idNumber == assignedID));
+
+        PersonP newPerson = createPerson(firstName, lastName, birthDate, assignedID);
+        insertSorted(head, newPerson);
+    }
+
+    fclose(file);
+}
+
+void printList(PersonP head) {
+    while (head != NULL) {
+        printf("ID: %d, Name: %s %s, Birth Date: %s\n", head->idNumber, head->firstName, head->lastName, head->birthDate);
+        head = head->Next;
+    }
+}
+
+PersonP deletePerson(PersonP head, int idNumber) {
+    PersonP current = head->Next;  
+    PersonP previous = head; 
+
+    while (current != NULL && current->idNumber != idNumber) {
+        previous = current;
         current = current->Next;
     }
-    
-    if (current == NULL) return head;
-    
-    if (prev == NULL) {
-        head = current->Next;
-    } else {
-        prev->Next = current->Next;
+
+    if (current == NULL) {
+        printf("Osoba s ID-em %d nije pronađena.\n", idNumber);
+        return head;
     }
+
+    previous->Next = current->Next;
     free(current);
     return head;
 }
 
-int generateUniqueID() {
-    static int nextID = 100;
-    if (nextID > 180) nextID = 100;  // reset ID if it exceeds 180
-    return nextID++;
-}
-
-int main() {
-    FILE *file = fopen("Osobe.txt", "r");
-    if (!file) {
-        printf("Failed to open file.\n");
-        return 1;
+void freeList(PersonP head) {
+    PersonP current = head;
+    while (current != NULL) {
+        PersonP next = current->Next;
+        free(current);
+        current = next;
     }
-
-    PersonP head = NULL;
-    Person tempPerson;
-
-    while (fscanf(file, "%s %s %d/%d/%d", tempPerson.firstName, tempPerson.lastName, 
-                  &tempPerson.birthDate.day, &tempPerson.birthDate.month, &tempPerson.birthDate.year) == 5) {
-        tempPerson.idNumber = generateUniqueID();
-        tempPerson.Next = NULL;
-        head = insertSorted(head, &tempPerson);
-    }
-
-    fclose(file);
-
-    printf("Original List:\n");
-    printList(head);
-
-    int idToDelete;
-    printf("\nEnter ID to delete: ");
-    scanf("%d", &idToDelete);
-
-    head = deletePersonByID(head, idToDelete);
-
-    printf("\nUpdated List:\n");
-    printList(head);
-
-    freeList(head);
-    return 0;
 }
