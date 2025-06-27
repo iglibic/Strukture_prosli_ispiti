@@ -11,7 +11,7 @@
 // U izradi zadatka može se koristiti struktura: 
 
 struct number_;
-typdef struct number_ *NumberP;
+typedef struct number_ *NumberP;
 typedef struct number_ {
   int value;
   int no_repeats;
